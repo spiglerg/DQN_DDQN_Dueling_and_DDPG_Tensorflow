@@ -23,3 +23,6 @@ I have tried to keep the implementation as simple and minimal as possible, but s
 For anything else, feel free to contact me!
 
 
+
+![alt tag](images/plot_seaquest_10M.png)
+
