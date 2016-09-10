@@ -117,6 +117,8 @@ class DQN(object):
 		with tf.name_scope("target_network_update"):
 			self.hard_copy_to_target = DQN.copy_to_target_network(self.qnet, self.target_qnet)
 
+		self.summarize = tf.merge_all_summaries()
+
 
 
 	def store(self, state, action, reward, next_state, is_terminal):
@@ -195,7 +197,7 @@ class DQN(object):
 			# Write logs
 			print 'mean maxQ in minibatch: ',np.mean(np.max(scores,1))
 
-			str_ = self.session.run(tf.merge_all_summaries(), { self.state: batch_states,
+			str_ = self.session.run(self.summarize, { self.state: batch_states,
 										self.next_state: batch_newstates,
 										self.next_state_mask: batch_newstates_mask,
 										self.rewards: batch_rewards,
