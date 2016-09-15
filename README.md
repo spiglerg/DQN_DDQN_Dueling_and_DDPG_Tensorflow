@@ -1,7 +1,7 @@
-# Atari_DQN_Nature_TF_Implementation
-Tensorflow + OpenAI Gym implementation of the Deep Q-Network agent described in ``Human-level control through deep reinforcement learning'', [Mnih et al., 2015].
-
-The current code has been tested on Seaquest, but it should work with any other Atari environment.
+# DQN_and_DDPG_Tensorflow
+Tensorflow + OpenAI Gym implementation of two popular Deep Reinforcement Learning models:
+* Deep Q-Network, as described in ``Human-level control through deep reinforcement learning'', [Mnih et al., 2015].
+* Deep Deterministic Policy Gradient (DDPG), as described in ``Continuous control with deep reinforcement learning'', [Lillicrap et. al, 2015].
 
 
 
