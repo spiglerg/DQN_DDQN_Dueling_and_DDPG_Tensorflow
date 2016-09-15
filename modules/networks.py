@@ -208,3 +208,54 @@ class QNetworkNature(QNetwork):
 
 
 
+
+
+
+class ActorCritic_MLP(QNetwork):
+	def __init__(self, input_size, output_size, actor_or_critic, name):
+		"""
+		actor_or_critic=0 for actor, 1 for critic. The only difference is in the output transfer function (tanh for actor, identity for critic)
+		"""
+		self.name = name
+		self.actor_or_critic = actor_or_critic
+
+		self.input_size = input_size
+		self.output_size = output_size
+
+		with tf.variable_scope(self.name):
+			l1 = 200
+			l2 = 200
+
+			self.W_fc1 = self.weight_variable([self.input_size, l1])
+			self.B_fc1 = self.bias_variable([l1])
+
+			self.W_fc2 = self.weight_variable([l1, l2])
+			self.B_fc2 = self.bias_variable([l2])
+
+			self.W_out = self.weight_variable([l2, self.output_size], uniform=0.003)
+			self.B_out = self.bias_variable([self.output_size], uniform=0.003)
+
+
+		# Print number of parameters in the network
+		self.print_num_of_parameters()
+
+
+	def __call__(self, input_tensor):
+		if type(input_tensor) == list:
+			input_tensor = tf.concat(1, input_tensor)
+
+		with tf.variable_scope(self.name):
+			self.h_fc1 = tf.nn.relu(tf.matmul(input_tensor, self.W_fc1) + self.B_fc1)
+			self.h_fc2 = tf.nn.relu(tf.matmul(self.h_fc1, self.W_fc2) + self.B_fc2)
+
+			if self.actor_or_critic==0: # ACTOR
+				self.out = tf.nn.tanh(tf.matmul(self.h_fc2, self.W_out) + self.B_out)
+			else: # CRITIC
+				self.out = tf.identity(tf.matmul(self.h_fc2, self.W_out) + self.B_out)
+
+		return self.out
+
+
+
+
+
