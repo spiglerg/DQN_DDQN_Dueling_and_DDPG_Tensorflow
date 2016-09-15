@@ -1,6 +1,6 @@
 # DQN_and_DDPG_Tensorflow
 Tensorflow + OpenAI Gym implementation of two popular Deep Reinforcement Learning models:
-* **Deep Q-Network**, as described in ``Human-level control through deep reinforcement learning'', [Mnih et al., 2015].
+* **Deep Q-Network (DQN)**, as described in ``Human-level control through deep reinforcement learning'', [Mnih et al., 2015].
 * **Deep Deterministic Policy Gradient (DDPG)**, as described in ``Continuous control with deep reinforcement learning'', [Lillicrap et. al, 2015].
 
 
