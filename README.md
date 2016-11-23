@@ -26,6 +26,6 @@ I have tried to keep the implementation as simple and minimal as possible, but s
 For anything else, feel free to contact me!
 
 
-
+(Older) DQN results:
 ![alt tag](images/plot_seaquest_DQN_10M.png)
 
