@@ -27,11 +27,14 @@ class DQN(object):
 					   target_qnet_update_frequency = 10000,
 					   initial_exploration_epsilon = 1.0,
 					   final_exploration_epsilon = 0.05,
-					   reward_clipping = -1):
+					   reward_clipping = -1,
+					   DoubleDQN = False):
 
 		# Setup the parameters, data structures and networks
 		self.state_size = state_size
 		self.action_size = action_size
+
+		self.DoubleDQN = DoubleDQN
 
 		self.session = session
 		self.exploration_period = float(exploration_period)
@@ -47,10 +50,10 @@ class DQN(object):
 		self.final_exploration_epsilon = final_exploration_epsilon
 
 
-		self.qnet = QNetworkNature(self.state_size, self.action_size, "qnet")
-		self.target_qnet = QNetworkNature(self.state_size, self.action_size, "target_qnet")
+		self.qnet = QNetworkDueling(self.state_size, self.action_size, "qnet")
+		self.target_qnet = QNetworkDueling(self.state_size, self.action_size, "target_qnet")
 
-		self.qnet_optimizer =tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, epsilon=0.01) 
+		self.qnet_optimizer = tf.train.RMSPropOptimizer(learning_rate=0.00025, decay=0.99, epsilon=0.01) 
 
 
 		self.experience_replay = ReplayMemoryFast(self.experience_replay_buffer, self.minibatch_size)
@@ -85,13 +88,31 @@ class DQN(object):
 
 		# Predict target future reward: r  +  gamma * max_a'[ Q'(s') ]
 		with tf.name_scope("estimating_future_rewards"):
+			# DQN vs DoubleDQN (DDQN)
+			# In DQN the target is          y_i^DQN  = r + gamma * max_a' Q_target(next_state, a')
+			# In DoubleDQN it's changed to  y_i^DDQN = r + gamma * Q_target(next_state, argmax_a' Q(next_state, a') )
+			# In practice, we use the actual QNet (non target) to select the action for the next state, but then use its Q value estimated using the target network
 			self.next_state = tf.placeholder(tf.float32, (None,)+self.state_size , name="next_state")
 			self.next_state_mask = tf.placeholder(tf.float32, (None,) , name="next_state_mask") # 0 for terminal states
-			self.next_q_values = tf.stop_gradient(self.target_qnet(self.next_state) , name="next_q_values")
 			self.rewards = tf.placeholder(tf.float32, (None,) , name="rewards")
-			self.next_max_q_values = tf.reduce_max(self.next_q_values, reduction_indices=[1,]) * self.next_state_mask
 
-			## double dqn:  instead of reduce_max, compute next_q_values using the non-target net, and use THOSE to select the action (z1 = tf.equal(t, tf.reduce_max(t, reduction_indices=[1], keep_dims=True)) ?);  then multiply these 1-hot action vectors by the next_q_values like in the following section, to select the actual target q values!
+			self.next_q_values_targetqnet = tf.stop_gradient(self.target_qnet(self.next_state), name="next_q_values_targetqnet")
+
+			if self.DoubleDQN:
+				# DoubleDQN
+				print "Double DQN"
+				self.next_q_values_qnet = tf.stop_gradient(self.qnet(self.next_state), name="next_q_values_qnet")
+				self.next_selected_actions = tf.argmax(self.next_q_values_qnet, dimension=1)
+				self.next_selected_actions_onehot = tf.one_hot(indices=self.next_selected_actions, depth=self.action_size)
+
+				self.next_max_q_values = tf.stop_gradient( tf.reduce_sum( tf.mul( self.next_q_values_targetqnet, self.next_selected_actions_onehot ) , reduction_indices=[1,] ) * self.next_state_mask )
+
+
+
+			else:
+				# DQN
+				print "Regular DQN"
+				self.next_max_q_values = tf.reduce_max(self.next_q_values_targetqnet, reduction_indices=[1,]) * self.next_state_mask
 
 			self.target_q_values = self.rewards + self.discount_factor*self.next_max_q_values
 
@@ -110,7 +131,7 @@ class DQN(object):
 			qnet_gradients = self.qnet_optimizer.compute_gradients(self.loss, self.qnet.variables())
 			for i, (grad, var) in enumerate(qnet_gradients):
 				if grad is not None:
-					qnet_gradients[i] = (tf.clip_by_norm(grad, 5), var)
+					qnet_gradients[i] = (tf.clip_by_norm(grad, 10), var)
 			self.qnet_optimize = self.qnet_optimizer.apply_gradients(qnet_gradients)
 
 

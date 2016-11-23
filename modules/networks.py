@@ -5,6 +5,9 @@ import numpy as np
 import random
 import tensorflow as tf
 
+from batch_norm_utils import *
+
+
 
 class QNetwork(object):
 	"""
@@ -203,6 +206,95 @@ class QNetworkNature(QNetwork):
 
 
 		return self.h_fc5
+
+
+
+
+
+
+
+
+
+
+
+class QNetworkDueling(QNetwork):
+	"""
+	QNetwork used in ``Human-level control through deep reinforcement learning'', [Mnih et al., 2015].
+	It's a Convolutional Neural Network with the following specs:
+		L1: 32 8x8 filters with stride 4  +  RELU
+		L2: 64 4x4 filters with stride 2  +  RELU
+		L3: 64 3x3 fitlers with stride 1  +  RELU
+		L4a: 512 unit Fully-Connected layer  +  RELU
+		L4b: 512 unit Fully-Connected layer  +  RELU
+		L5a: 1 unit FC + RELU (State Value)
+		L5b: #actions FC + RELU (Advantage Value)
+		L6: Aggregate V(s)+A(s,a)
+	"""
+	def __init__(self, input_size, output_size, name):
+		self.name = name
+
+		self.input_size = input_size
+		self.output_size = output_size
+
+		with tf.variable_scope(self.name):
+			self.W_conv1 = self.weight_variable([8, 8, 4, 32]) # 32 8x8 filters over 4 channels (frames)
+			self.B_conv1 = self.bias_variable([32])
+			self.stride1 = 4
+
+			self.W_conv2 = self.weight_variable([4, 4, 32, 64])
+			self.B_conv2 = self.bias_variable([64])
+			self.stride2 = 2
+
+			self.W_conv3 = self.weight_variable([3, 3, 64, 64])
+			self.B_conv3 = self.bias_variable([64])
+			self.stride3 = 1
+
+
+			# FC layer
+			self.W_fc4a = self.weight_variable([7*7*64, 512])#, fanin=11*11*32)
+			self.B_fc4a = self.bias_variable([512])#, fanin=11*11*32)
+
+			self.W_fc4b = self.weight_variable([7*7*64, 512])#, fanin=11*11*32)
+			self.B_fc4b = self.bias_variable([512])#, fanin=11*11*32)
+
+			# FC layer
+			self.W_fc5a = self.weight_variable([512, 1])#, fanin=256)
+			self.B_fc5a = self.bias_variable([1])#, fanin=256)
+
+			self.W_fc5b = self.weight_variable([512, self.output_size])#, fanin=256)
+			self.B_fc5b = self.bias_variable([self.output_size])#, fanin=256)
+
+
+
+		# Print number of parameters in the network
+		self.print_num_of_parameters()
+
+
+	def __call__(self, input_tensor):
+		if type(input_tensor) == list:
+			input_tensor = tf.concat(1, input_tensor)
+
+		with tf.variable_scope(self.name):
+			# input_tensor is (84, 84, 4)
+
+			self.h_conv1 = tf.nn.relu( tf.nn.conv2d(input_tensor, self.W_conv1, strides=[1, self.stride1, self.stride1, 1], padding='VALID') + self.B_conv1 )
+
+			self.h_conv2 = tf.nn.relu( tf.nn.conv2d(self.h_conv1, self.W_conv2, strides=[1, self.stride2, self.stride2, 1], padding='VALID') + self.B_conv2 )
+
+			self.h_conv3 = tf.nn.relu( tf.nn.conv2d(self.h_conv2, self.W_conv3, strides=[1, self.stride3, self.stride3, 1], padding='VALID') + self.B_conv3 )
+
+			self.h_conv3_flat = tf.reshape(self.h_conv3, [-1, 7*7*64])
+
+			self.h_fc4a = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4a) + self.B_fc4a)
+			self.h_fc4b = tf.nn.relu(tf.matmul(self.h_conv3_flat, self.W_fc4b) + self.B_fc4b)
+
+			self.h_fc5a_value     = tf.identity(tf.matmul(self.h_fc4a, self.W_fc5a) + self.B_fc5a)
+			self.h_fc5b_advantage = tf.identity(tf.matmul(self.h_fc4b, self.W_fc5b) + self.B_fc5b)
+
+			self.h_fc6 = self.h_fc5a_value + ( self.h_fc5b_advantage - tf.reduce_mean(self.h_fc5b_advantage, reduction_indices=[1,], keep_dims=True) )
+
+
+		return self.h_fc6
 
 
 

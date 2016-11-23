@@ -33,11 +33,12 @@ print
 
 
 outdir = "gym_results"
+#outdir = "delme"
 
 
 
 ENV_NAME = 'Seaquest-v0'
-TOTAL_FRAMES = 10000000 ## TRAIN
+TOTAL_FRAMES = 20000000 ## TRAIN
 MAX_TRAINING_STEPS = 20*60*60/3 ## MAX STEPS BEFORE RESETTING THE ENVIRONMENT
 TESTING_GAMES = 30 # no. of games to average on during testing
 MAX_TESTING_STEPS = 5*60*60/3 #5 minutes  '/3' because gym repeating the last action 3-4 times already!
@@ -65,6 +66,8 @@ session = tf.InteractiveSession(config=config)
 
 
 # Create DQN agent
+UseDoubleDQN = True
+
 agent = DQN(state_size=env.observation_space.shape,
 			action_size=env.action_space.n,
 			session=session,
@@ -73,10 +76,11 @@ agent = DQN(state_size=env.observation_space.shape,
 			minibatch_size = 32,
 			discount_factor = 0.99,
 			experience_replay_buffer = 1000000,
-			target_qnet_update_frequency = 10000,
+			target_qnet_update_frequency = 20000, #30000 if UseDoubleDQN else 10000, ## Tuned DDQN
 			initial_exploration_epsilon = 1.0,
 			final_exploration_epsilon = 0.1,
-			reward_clipping = 1.0)
+			reward_clipping = 1.0,
+			DoubleDQN = UseDoubleDQN)
 
 
 
@@ -99,10 +103,12 @@ if len(sys.argv)==3:
 
 
 
+
 num_frames = 0
 num_games = 0
 
 current_game_frames = 0
+init_no_ops = np.random.randint(MAX_NOOP_START+1)
 
 
 last_time = time.time()
@@ -124,7 +130,7 @@ while num_frames <= TOTAL_FRAMES+1:
 	else:
 		action = agent.action(state, training = False)
 
-	if current_game_frames < MAX_NOOP_START:
+	if current_game_frames < init_no_ops:
 		action = 0
 
 	# Perform the selected action on the environment
@@ -132,7 +138,7 @@ while num_frames <= TOTAL_FRAMES+1:
 
 
 	# Store experience
-	if current_game_frames >= MAX_NOOP_START:
+	if current_game_frames >= init_no_ops:
 		agent.store(state,action,reward,next_state,done)
 	state = next_state
 
@@ -145,6 +151,7 @@ while num_frames <= TOTAL_FRAMES+1:
 		state = env.reset()
 		current_game_frames = 0
 		num_games += 1
+		init_no_ops = np.random.randint(MAX_NOOP_START+1)
 
 
 	# Print an update
@@ -173,11 +180,16 @@ while num_frames <= TOTAL_FRAMES+1:
 		avg_steps = 0
 		for i in xrange(TESTING_GAMES):
 			state = env.reset()
+			init_no_ops = np.random.randint(MAX_NOOP_START+1)
 			frm = 0
 			while frm < MAX_TESTING_STEPS:
 				frm += 1
 				#env.render()
 				action = agent.action(state, training = False) # direct action for test
+
+				if current_game_frames < init_no_ops:
+					action = 0
+
 				state,reward,done,_ = env.step(action)
 
 				total_reward += reward
