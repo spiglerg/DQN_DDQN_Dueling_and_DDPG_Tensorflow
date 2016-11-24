@@ -10,7 +10,6 @@ import tensorflow as tf
 import gc
 gc.enable()
 
-tf.device('/gpu:0')
 
 
 from modules.ddpg import *
