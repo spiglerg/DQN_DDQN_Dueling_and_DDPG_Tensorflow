@@ -5,8 +5,6 @@ import numpy as np
 import random
 import tensorflow as tf
 
-from batch_norm_utils import *
-
 
 
 class QNetwork(object):
