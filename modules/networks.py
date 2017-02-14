@@ -322,8 +322,8 @@ class ActorCritic_MLP(QNetwork):
 			self.W_fc2 = self.weight_variable([l1, l2])
 			self.B_fc2 = self.bias_variable([l2])
 
-			self.W_out = self.weight_variable([l2, self.output_size], uniform=0.003)
-			self.B_out = self.bias_variable([self.output_size], uniform=0.003)
+			self.W_out = self.weight_variable([l2, self.output_size])
+			self.B_out = self.bias_variable([self.output_size])
 
 
 		# Print number of parameters in the network
